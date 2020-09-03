@@ -1,0 +1,12 @@
+---
+- name: Prepare all MongoDB directories
+  file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ mongo_user }}'
+    group: '{{ mongo_user }}'
+    mode: '0700'
+  loop:
+    - '{{ mongo_keyfile_dir }}'
+    - '{{ arbiter_path }}'
+    - '{{ log_path }}'

@@ -1,0 +1,50 @@
+#jinja2: trim_blocks:False
+# mongod.conf
+
+# for documentation of all options, see:
+#   http://docs.mongodb.org/manual/reference/configuration-options/
+
+# Where and how to store data.
+storage:
+  dbPath: {% if 'arbiters' in group_names %}{{ arbiter_path }}{% else %}{{ data_path }}{% endif %}{{''}}
+  journal:
+    enabled: true
+#  engine: {% if 'arbiters' in group_names %}
+#  mmapv1:
+#  wiredTiger: {% else %}
+#  mmapv1:
+  wiredTiger:
+    collectionConfig:
+      blockCompressor: zstd {% endif %}
+
+# where to write logging data.
+systemLog:
+  destination: file
+  logRotate: reopen
+  logAppend: true
+  path: {{ log_path }}/mongod.log
+
+# network interfaces
+net:
+  port: 27017
+  #bindIp: 127.0.0.1
+  bindIpAll: true
+
+
+# how the process runs
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+
+#security:
+
+#operationProfiling:
+
+#replication:
+
+#sharding:
+
+## Enterprise-Only Options:
+
+#auditLog:
+
+#snmp:

@@ -1,0 +1,32 @@
+---
+- name: Retrieving Percona latest repository
+  get_url:
+    url: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+    dest: './percona-release_latest.generic_all.deb'
+    mode: '0600'
+
+- name: Configure Percona repository
+  shell: dpkg -i percona-release_latest.generic_all.deb
+
+- name: Install Percona client
+  apt:
+    name: pmm2-client
+    state: present
+    update_cache: true
+
+- name: Connect Percona client
+  shell: |
+    pmm-admin config --server-insecure-tls --server-url=https://admin:{{ grafana_monitoring_pass }}@{{ item }}:443 {{ host_ip }} generic {{ inventory_hostname }} --force
+  loop: "{{ groups['monitoring'] }}"
+  register: command_result
+  failed_when:
+    - command_result.rc != 0
+    - '"already" not in command_result.stdout'
+
+- name: Add MongoDB service for monitoring
+  shell: |
+    pmm-admin add mongodb --host {{ inventory_hostname }} --port 27017 --username={{ mongo_monitoring_user }} --password={{ mongo_monitoring_pass }}
+  register: command_result
+  failed_when:
+    - command_result.rc != 0
+    - '"already" not in command_result.stdout'

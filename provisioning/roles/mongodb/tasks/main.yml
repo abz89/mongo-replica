@@ -1,0 +1,61 @@
+---
+- name: Create an unauthenticated MongoDB configuration file
+  template:
+    src: unauthenticated_mongod.j2
+    dest: /etc/mongod.conf
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Make sure a MongoDB service auto start on boot and started
+  systemd:
+    name: mongod
+    enabled: yes
+    state: started
+
+- name: Add Admin user to replica set
+  mongodb_user:
+    database: admin
+    name: admin
+    password: '{{ mongo_admin_pass | string }}'
+    roles: root
+    state: present
+  ignore_errors: yes
+  no_log: true
+
+- name: Create Monitoring user
+  mongodb_user:
+    database: admin
+    name: '{{ mongo_monitoring_user }}'
+    password: '{{ mongo_monitoring_pass | string }}'
+    roles:
+      - db: admin
+        role: clusterMonitor
+      - db: local
+        role: read
+    state: present
+  ignore_errors: yes
+  no_log: true
+
+- name: Copy Keyfile accross all nodes
+  copy:
+    src: keyFile
+    dest: "{{ mongo_keyfile_dir }}/keyfile"
+    owner: '{{ mongo_user }}'
+    group: '{{ mongo_user }}'
+    mode: '0600'
+
+- name: Create an authenticated MongoDB configuration file
+  template:
+    src: authenticated_mongod.j2
+    dest: /etc/mongod.conf
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restart a MongoDB service after change authorization
+  systemd:
+    name: mongod
+    state: restarted

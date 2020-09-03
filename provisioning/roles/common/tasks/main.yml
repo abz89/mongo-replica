@@ -1,0 +1,151 @@
+---
+- name: Setup Host File
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update APT cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600 # 1 hour
+
+# - name: Upgrade all packages to the latest version
+#   apt:
+#     name: '*'
+#     state: latest
+
+- name: Make sure if GnuPG and other required packages are installed
+  apt:
+    name: '{{ item }}'
+    state: present
+  loop:
+    - gnupg
+    - python3-pymongo
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg-agent
+    - software-properties-common
+
+- name: Import the MongoDB public GPG Key
+  apt_key:
+    url: https://www.mongodb.org/static/pgp/server-4.4.asc
+    state: present
+
+- name: Add MongoDB Repo
+  apt_repository:
+    repo: deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse
+    state: present
+    filename: mongodb-org-4.4
+    mode: '0644'
+    update_cache: yes
+
+- name: Install the MongoDB packages
+  apt:
+    name: mongodb-org
+    state: present
+
+- name: Prevent MongoDB from being upgraded
+  dpkg_selections:
+    name: '{{ item }}'
+    selection: hold
+  loop:
+    - mongodb-org
+    - mongodb-org-server
+    - mongodb-org-shell
+    - mongodb-org-mongos
+    - mongodb-org-tools
+
+- name: Create "Disable Transparent Huge Pages" service
+  copy:
+    src: disable-transparent-hugepages
+    dest: /etc/init.d/
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Force systemd for apply any changes
+  systemd:
+    daemon_reload: yes
+
+- name: Make sure a "Disable Transparent Huge Pages" service auto start on boot and started
+  systemd:
+    name: disable-transparent-hugepages
+    enabled: yes
+    state: started
+
+- name: Setup log rotation
+  copy:
+    src: mongodb_logrotate
+    dest: /etc/logrotate.d/mongodb
+    owner: root
+    group: root
+    mode: '0644'
+
+# https://gist.github.com/devster31/74e48cc1c8e73c637bc7
+- name: Check for Swap file
+  stat:
+    path: '{{ swap_file }}'
+  register: swap_file_check
+
+- name: Create Swap file
+  command: dd if=/dev/zero of=/{{ swap_file }} bs=1M count={{ swap_size }}
+  when: not swap_file_check.stat.exists
+
+- name: Format Swap file
+  command: mkswap {{ swap_file }}
+  when: not swap_file_check.stat.exists
+
+- name: Set permissions on Swap file
+  file:
+    path: '{{ swap_file }}'
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Add Swap to fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '{{ swap_file }}'
+    line: '{{ swap_file }} none     swap sw 0 0'
+
+# - name: Mount Swap
+#   mount:
+#     src: '{{ swap_file }}'
+#     path: none
+#     fstype: swap
+#     opts: sw
+#     state: mounted
+
+- name: Checking if Swap is already activated
+  command: swapon -s
+  register: swap_active_check
+  changed_when: "swap_file in swap_active_check.stdout"
+
+- debug:
+    var: swap_active_check
+
+- name: Activate Swap
+  command: swapon -a
+  when: "swap_file not in swap_active_check.stdout"
+
+- name: Set swapiness
+  sysctl:
+    name: vm.swappiness
+    value: '1'
+    state: present
+
+- name: Set timezone to Asia/Jakarta
+  timezone:
+    name: Asia/Jakarta
+
+- name: Remove useless packages from the cache
+  apt:
+    autoclean: yes
+
+- name: Remove dependencies that are no longer required
+  apt:
+    autoremove: yes

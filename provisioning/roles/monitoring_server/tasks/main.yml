@@ -1,0 +1,56 @@
+---
+- name: Pull PMM docker image
+  docker_image:
+    name: percona/pmm-server:2
+    source: pull
+
+- name: Create a PMM Data container
+  docker_container:
+    name: pmm-data
+    image: percona/pmm-server:2
+    command: /bin/true
+    volumes:
+      - /srv
+
+- name: (Re)create a PMM Server container
+  docker_container:
+    name: pmm-server
+    image: percona/pmm-server:2
+    detach: yes
+    restart_policy: always
+    state: started
+    published_ports:
+      - '80:80'
+      - '443:443'
+    volumes_from:
+      - pmm-data
+
+- name: Wait for PMM Server and continue to play
+  wait_for:
+    port: 443
+    delay: 5
+    timeout: 100
+
+- name: Verify PMM Server installation by URI
+  uri:
+    url: 'https://localhost:443'
+    validate_certs: no
+    status_code: 302
+    return_content: yes
+  register: installation_status
+  failed_when: "'grafana-app' not in installation_status.content"
+  retries: 3
+  delay: 3
+
+- name: Verify PMM Server installation by API
+  shell: |
+    docker exec -t pmm-server curl -u admin:{{ grafana_monitoring_pass }} http://localhost/v1/version
+  register: service_status
+
+- debug:
+    var: service_status
+
+# USELESS?
+# - name: Reset Admin password
+#   shell: |
+#     docker exec -t pmm-server bash -c 'cd /usr/share/grafana && grafana-cli admin reset-admin-password {{ grafana_monitoring_pass }}'

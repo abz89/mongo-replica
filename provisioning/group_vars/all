@@ -1,0 +1,29 @@
+swap_file: /swapfile
+swap_size: 100
+
+xfs_opts: defaults,auto,noatime,noexec
+
+arbiter_path: /arbiter
+
+data_disk: /dev/sdc
+data_path: /data
+data_size: 20
+
+journal_disk: /dev/sdd
+journal_path: /journal
+journal_size: 4
+
+log_disk: /dev/sde
+log_path: /log
+log_size: 2
+
+mongo_user: mongodb
+mongo_admin_pass: 123456
+mongo_keyfile_dir: /etc/mongod
+mongo_monitoring_user: monitor
+mongo_monitoring_pass: monitor123
+# grafana password always reset to default even after running grafana-cli
+grafana_monitoring_pass: admin
+
+replica_set_name: rs0
+mongo_iface: enp0s8

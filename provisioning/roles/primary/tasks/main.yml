@@ -1,0 +1,26 @@
+---
+# https://stackoverflow.com/questions/42811213/ansible-generate-variables-in-loops
+- name: Check replica set member hosts
+  set_fact:
+    member_list: '{{ lookup("template", "member.j2") | from_yaml }}'
+
+- debug:
+    var: member_list
+
+# - name: Make sure a MongoDB service auto start on boot and started
+#   systemd:
+#     name: mongod
+#     enabled: yes
+#     state: started
+
+- name: Ensure that replica set initialized
+  mongodb_replicaset:
+    login_host: localhost
+    login_user: admin
+    login_password: '{{ mongo_admin_pass | string }}'
+    login_database: admin
+    replica_set: '{{ replica_set_name }}'
+    arbiter_at_index: 1
+    members: '{{ member_list }}'
+    validate: no
+  ignore_errors: yes

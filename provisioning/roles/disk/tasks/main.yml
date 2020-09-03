@@ -1,0 +1,52 @@
+---
+- name: Create Filesystem for additional disks
+  filesystem:
+    fstype: xfs
+    dev: '{{ item }}'
+  loop:
+    - '{{ data_disk }}'
+    - '{{ journal_disk }}'
+    - '{{ log_disk }}'
+
+- name: Mount MongoDB data disk
+  mount:
+    src: '{{ data_disk }}'
+    path: '{{ data_path }}'
+    fstype: xfs
+    opts: '{{ xfs_opts }}'
+    state: mounted
+
+- name: Mount MongoDB journal disk
+  mount:
+    src: '{{ journal_disk }}'
+    path: '{{ journal_path }}'
+    fstype: xfs
+    opts: '{{ xfs_opts }}'
+    state: mounted
+
+- name: Mount MongoDB log disk
+  mount:
+    src: '{{ log_disk }}'
+    path: '{{ log_path }}'
+    fstype: xfs
+    opts: '{{ xfs_opts }}'
+    state: mounted
+
+- name: Create a symbolic link for journal
+  file:
+    src: '{{ journal_path }}'
+    dest: '{{ data_path }}/journal'
+    state: link
+
+- name: Prepare all additional mount points
+  file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ mongo_user }}'
+    group: '{{ mongo_user }}'
+    mode: '0700'
+  loop:
+    - '{{ mongo_keyfile_dir }}'
+    - '{{ data_path }}'
+    - '{{ journal_path }}'
+    - '{{ log_path }}'

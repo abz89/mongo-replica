@@ -1,0 +1,65 @@
+---
+- name: Common Setup
+  become: yes
+  hosts: all
+  roles:
+    - common
+  tags:
+    - base
+
+- name: Setup Disk for Primary & Secondary Nodes
+  become: yes
+  hosts:
+    - primaries
+    - secondaries
+  roles:
+    - disk
+  tags:
+    - base
+
+- name: Setup Arbiter Node
+  become: yes
+  hosts: arbiters
+  roles:
+    - arbiter
+  tags:
+    - mongodb
+
+- name: Setup MongoDB for All Nodes
+  become: yes
+  hosts:
+    - primaries
+    - arbiters
+    - secondaries
+  roles:
+    - mongodb
+  tags:
+    - mongodb
+
+- name: Setup Replica Set from Primary Node
+  become: yes
+  hosts: primaries
+  roles:
+    - primary
+  tags:
+    - replication
+
+- name: Install Docker & Setup Monitoring Server
+  become: yes
+  hosts: monitoring
+  roles:
+    - docker
+    - monitoring_server
+  tags:
+    - monitoring_server
+
+- name: Setup Monitoring Clients
+  become: yes
+  hosts:
+    - primaries
+    - arbiters
+    - secondaries
+  roles:
+    - monitoring_client
+  tags:
+    - monitoring_client
